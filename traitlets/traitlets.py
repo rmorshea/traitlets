@@ -310,6 +310,7 @@ class BaseDescriptor(object):
 
     name = None
     this_class = None
+    instance_requires = {}
 
     def instance_init(self, obj):
         """Part of the initialization which may depend on the underlying
@@ -333,6 +334,9 @@ class TraitType(BaseDescriptor):
     allow_none = False
     read_only = False
     info_text = 'any value'
+    instance_requires = {'_trait_values': dict,
+                         '_trait_validators': dict,
+                         '_trait_notifiers': dict}
 
     def __init__(self, default_value=Undefined, allow_none=None, read_only=None, help=None, **metadata):
         """Declare a traitlet.
@@ -734,16 +738,14 @@ class HasDescriptors(py3compat.with_metaclass(MetaHasDescriptors, object)):
                 pass
             else:
                 if isinstance(value, BaseDescriptor):
+                    for name in value.instance_requires:
+                        if not hasattr(self, name):
+                            c = value.instance_requires[name]
+                            setattr(self, name, c())
                     value.instance_init(self)
 
 
 class HasTraits(HasDescriptors):
-
-    def install_descriptors(self, cls):
-        self._trait_values = {}
-        self._trait_notifiers = {}
-        self._trait_validators = {}
-        super(HasTraits, self).install_descriptors(cls)
 
     def __init__(self, *args, **kw):
         # Allow trait values to be set using keyword arguments.
