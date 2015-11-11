@@ -782,6 +782,12 @@ def default(name):
     return DefaultHandler(name)
 
 
+def context(*names, **kwargs):
+    tags = kwargs.get('tags')
+    types = kwargs.get('types', ('change',))
+    return ContextHandler(names, types=types, tags=tags)
+
+
 class EventHandler(BaseDescriptor):
 
     def _init_call(self, func):
@@ -831,6 +837,63 @@ class DefaultHandler(EventHandler):
 
     def class_init(self, cls):
         cls._trait_default_generators[self._name] = self
+
+
+class ContextHandler(EventHandler):
+
+    def __init__(self, names, types=None, tags=None):
+        self.trait_names = names
+        self.types = types
+        self.tags = tags
+
+    def under_context(self, change):
+        if change['type'] in self.types:
+            if All in self.trait_names:
+                return True
+            if change['name'] in self.trait_names:
+                return True
+            if self.tags:
+                inst = change['owner']
+                tagged = inst.trait_names(**self.tags)
+                if change['name'] in tagged:
+                    return True
+            return False
+
+    def instance_init(self, inst):
+        if not isinstance(inst._notify_change, NotificationManager):
+            inst._notify_change = NotificationManager()
+        inst._notify_change.add_context(self)
+
+
+class NotificationManager(object):
+
+    def __init__(self):
+        self.holding = False
+        self.contexts = list()
+
+    def __call__(self, change):
+        inst = change['owner']
+        static = inst.__class__._notify_change
+        with self.notify_with_context(change):
+            static(inst, change)
+
+    @contextlib.contextmanager
+    def notify_with_context(self, change):
+        if self.holding:
+            yield
+        else:
+            try:
+                self.holding = True
+                yield
+            finally:
+                self.holding = False
+                for c in self.contexts:
+                    if c.under_context(change):
+                        c(change['owner'])
+
+    def add_context(self, c):
+        if c not in self.contexts:
+            self.contexts.append(c)
 
 
 class HasDescriptors(py3compat.with_metaclass(MetaHasDescriptors, object)):
@@ -934,8 +997,9 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, HasDescriptors)):
                         past_changes.append(change)
                     return past_changes
 
-            def hold(*a):
-                cache[a[0]] = compress(cache.get(a[0]), a[2])
+            def hold(change):
+                name = change['name']
+                cache[name] = compress(cache.get(name), change)
 
             try:
                 # Replace _notify_change with `hold`, caching and compressing
@@ -950,7 +1014,7 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, HasDescriptors)):
                     setattr(self, name, value)
             except TraitError as e:
                 # Roll back in case of TraitError during final cross validation.
-                self._notify_change = lambda *x: None
+                self._notify_change = lambda x: None
                 for name, changes in cache.items():
                     for change in changes[::-1]:
                         # TODO: Separate in a rollback function per notification type.
@@ -975,10 +1039,10 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, HasDescriptors)):
                 # trigger delayed notifications
                 for changes in cache.values():
                     for change in changes:
-                        self._notify_change(change['name'], change['type'], change)
+                        self._notify_change(change)
 
     def _notify_trait(self, name, old_value, new_value):
-        self._notify_change(name, 'change', {
+        self._notify_change({
             'name': name,
             'old': old_value,
             'new': new_value,
@@ -986,7 +1050,9 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, HasDescriptors)):
             'type': 'change',
         })
 
-    def _notify_change(self, name, type, change):
+    def _notify_change(self, change, *args):
+        name, type = change['name'], change['type']
+
         callables = []
         callables.extend(self._trait_notifiers.get(name, {}).get(type, []))
         callables.extend(self._trait_notifiers.get(name, {}).get(All, []))
