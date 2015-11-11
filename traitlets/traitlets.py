@@ -1051,6 +1051,8 @@ class HasTraits(py3compat.with_metaclass(MetaHasTraits, HasDescriptors)):
         })
 
     def _notify_change(self, change, *args):
+        if args:
+            change = args[-1]
         name, type = change['name'], change['type']
 
         callables = []
