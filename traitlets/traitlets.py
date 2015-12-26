@@ -58,6 +58,7 @@ from ipython_genutils.py3compat import iteritems, string_types
 from .utils.getargspec import getargspec
 from .utils.importstring import import_item
 from .utils.sentinel import Sentinel
+from .utils.index_table import itable
 
 SequenceTypes = (list, tuple, set, frozenset)
 
@@ -239,7 +240,12 @@ def _nested_path_set(dict, value, path):
         if key in last:
             next = last[key]
         else:
-            next = {}
+            try:
+                hash(key)
+            except:
+                next = itable()
+            else:
+                next = {}
             last[key] = next
         last = next
     last[path[-1]] = value
@@ -264,11 +270,36 @@ def _notifier_paths(names, tags, metadata):
                     paths.append(('named', n, k, v))
     if tags:
         for tk, tv in tags.items():
-            paths.append(('tagged', tk, tv, All))
+            try:
+                hash(tv)
+            except:
+                paths.appeng(('tagged', tk, _Unhashable, tv, All))
+            else:
+                paths.append(('tagged', tk, tv, All))
         if metadata:
             for tk, tv in tags.items():
                 for k, v in metadata.items():
-                    paths.append(('tagged', tk, tv, k, v))
+                    try:
+                        hash(tv)
+                    except:
+                        tv_hash = False
+                    else:
+                        tv_hash = True
+                    try:
+                        hash(v)
+                    except:
+                        v_hash = False
+                    else:
+                        v_hash = True
+
+                    if tv_hash and v_hash:
+                        paths.append(('tagged', tk, tv, k, v))
+                    elif tv_hash:
+                        ('tagged', tk, tv, k, _Unhashable, v)
+                    elif v_hash:
+                        ('tagged', tk, _Unhashable, tv, k, v)
+                    else:
+                        ('tagged', tk, _Unhashable, tv, k, _Unhashable, v)
     return paths
 
 
