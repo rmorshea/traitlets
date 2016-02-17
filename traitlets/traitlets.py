@@ -633,9 +633,11 @@ class TraitType(BaseDescriptor):
     def default_value_repr(self):
         return repr(self.default_value)
 
+
 #-----------------------------------------------------------------------------
 # The HasTraits implementation
 #-----------------------------------------------------------------------------
+
 
 class _CallbackWrapper(object):
     """An object adapting a on_trait_change callback into an observe callback.
@@ -672,57 +674,12 @@ class _CallbackWrapper(object):
         elif self.nargs == 4:
             self.cb(change['name'], change['old'], change['new'], change['owner'])
 
+
 def _callback_wrapper(cb):
     if isinstance(cb, _CallbackWrapper):
         return cb
     else:
         return _CallbackWrapper(cb)
-
-
-class MetaHasDescriptors(type):
-    """A metaclass for HasDescriptors.
-
-    This metaclass makes sure that any TraitType class attributes are
-    instantiated and sets their name attribute.
-    """
-
-    def __new__(mcls, name, bases, classdict):
-        """Create the HasDescriptors class."""
-        for k, v in iteritems(classdict):
-            # ----------------------------------------------------------------
-            # Support of deprecated behavior allowing for TraitType types
-            # to be used instead of TraitType instances.
-            if inspect.isclass(v) and issubclass(v, TraitType):
-                warn("Traits should be given as instances, not types (for example, `Int()`, not `Int`)",
-                     DeprecationWarning, stacklevel=2)
-                classdict[k] = v()
-            # ----------------------------------------------------------------
-
-        return super(MetaHasDescriptors, mcls).__new__(mcls, name, bases, classdict)
-
-    def __init__(cls, name, bases, classdict):
-        """Finish initializing the HasDescriptors class."""
-        super(MetaHasDescriptors, cls).__init__(name, bases, classdict)
-        cls.setup_class(classdict)
-
-    def setup_class(cls, classdict):
-        """Setup descriptor instance on the class
-
-        This sets the :attr:`this_class` and :attr:`name` attributes of each
-        BaseDescriptor in the class dict of the newly created ``cls`` before
-        calling their :attr:`class_init` method.
-        """
-        for k, v in iteritems(classdict):
-            if isinstance(v, BaseDescriptor):
-                v.class_init(cls, k)
-
-
-class MetaHasTraits(MetaHasDescriptors):
-    """A metaclass for HasTraits."""
-
-    def setup_class(cls, classdict):
-        cls._trait_default_generators = {}
-        super(MetaHasTraits, cls).setup_class(classdict)
 
 
 def observe(*names, **kwargs):
@@ -892,6 +849,52 @@ class DefaultHandler(EventHandler):
     def class_init(self, cls, name):
         super(DefaultHandler, self).class_init(cls, name)
         cls._trait_default_generators[self.trait_name] = self
+
+
+class MetaHasDescriptors(type):
+    """A metaclass for HasDescriptors.
+
+    This metaclass makes sure that any TraitType class attributes are
+    instantiated and sets their name attribute.
+    """
+
+    def __new__(mcls, name, bases, classdict):
+        """Create the HasDescriptors class."""
+        for k, v in iteritems(classdict):
+            # ----------------------------------------------------------------
+            # Support of deprecated behavior allowing for TraitType types
+            # to be used instead of TraitType instances.
+            if inspect.isclass(v) and issubclass(v, TraitType):
+                warn("Traits should be given as instances, not types (for example, `Int()`, not `Int`)",
+                     DeprecationWarning, stacklevel=2)
+                classdict[k] = v()
+            # ----------------------------------------------------------------
+
+        return super(MetaHasDescriptors, mcls).__new__(mcls, name, bases, classdict)
+
+    def __init__(cls, name, bases, classdict):
+        """Finish initializing the HasDescriptors class."""
+        super(MetaHasDescriptors, cls).__init__(name, bases, classdict)
+        cls.setup_class(classdict)
+
+    def setup_class(cls, classdict):
+        """Setup descriptor instance on the class
+
+        This sets the :attr:`this_class` and :attr:`name` attributes of each
+        BaseDescriptor in the class dict of the newly created ``cls`` before
+        calling their :attr:`class_init` method.
+        """
+        for k, v in iteritems(classdict):
+            if isinstance(v, BaseDescriptor):
+                v.class_init(cls, k)
+
+
+class MetaHasTraits(MetaHasDescriptors):
+    """A metaclass for HasTraits."""
+
+    def setup_class(cls, classdict):
+        cls._trait_default_generators = {}
+        super(MetaHasTraits, cls).setup_class(classdict)
 
 
 class HasDescriptors(py3compat.with_metaclass(MetaHasDescriptors, object)):
