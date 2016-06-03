@@ -1320,7 +1320,7 @@ class HasTraits(six.with_metaclass(MetaHasTraits, HasDescriptors)):
         This method is just like the :meth:`trait_names` method,
         but is unbound.
         """
-        return cls.class_traits(**metadata).keys()
+        return list(cls.class_traits(**metadata).keys())
 
     @classmethod
     def class_traits(cls, **metadata):
@@ -1373,7 +1373,7 @@ class HasTraits(six.with_metaclass(MetaHasTraits, HasDescriptors)):
         
     def trait_names(self, **metadata):
         """Get a list of all the names of this class' traits."""
-        return self.traits(**metadata).keys()
+        return list(self.traits(**metadata).keys())
 
     def traits(self, **metadata):
         """Get a ``dict`` of all the traits of this class.  The dictionary
