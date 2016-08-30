@@ -145,16 +145,17 @@ def _deprecated_method(method, cls, method_name, msg):
     else:
         warn_explicit(warn_msg, DeprecationWarning, fname, lineno)
 
-def class_of(object):
-    """ Returns a string containing the class name of an object with the
-    correct indefinite article ('a' or 'an') preceding it (e.g., 'an Image',
-    'a PlotValue').
+def class_of(value):
+    """Returns a string containing the name of an object's class, or the
+    name of a class with the correct indefinite article ('a' or 'an')
+    preceding it (e.g. 'an Image', 'a PlotValue').
     """
-    if isinstance( object, six.string_types ):
-        return add_article( object )
-
-    return add_article( object.__class__.__name__ )
-
+    if inspect.isclass(value):
+        return add_article(value.__name__)
+    elif isinstance(value, six.string_types):
+        return add_article(value)
+    else:
+        return add_article(value.__class__.__name__)
 
 def add_article(name):
     """ Returns a string containing the correct indefinite article ('a' or 'an')
@@ -1690,11 +1691,7 @@ class Instance(ClassBasedTraitType):
             self.error(obj, value)
 
     def info(self):
-        if isinstance(self.klass, six.string_types):
-            klass = self.klass
-        else:
-            klass = self.klass.__name__
-        result = class_of(klass)
+        result = class_of(self.klass)
         if self.allow_none:
             return result + ' or None'
 
@@ -1868,14 +1865,49 @@ class Int(TraitType):
         return value
 
 
-class CInt(Int):
-    """A casting version of the int trait."""
+class Coercable(TraitType):
+    """A mixin class for TraitTypes which coerce inputs
+
+    Attributes
+    ----------
+    base : class
+        The class which will be coercing inputs.
+    _cast_types : tuple of classes
+        An attribute which can be assigned in base
+        subclasses to limit what types of values are
+        allowed to be coered (this attribute is not
+        defined in the base class for mixin purposes).
+    """
+
+    base = None
 
     def validate(self, obj, value):
+        cast_types = getattr(self, '_cast_types', All)
+        if cast_types is not All:
+            for cls in cast_types:
+                if isinstance(value, cls):
+                    break
+            else:
+                self.error(obj, value)
         try:
-            return int(value)
+            value = self.base(value)
         except:
             self.error(obj, value)
+        # super validate the coerced value for mixin purposes
+        return super(Coercable, self).validate(obj, value)
+
+    def info(self):
+        cast_types = getattr(self, '_cast_types', All)
+        if cast_types is not All:
+            return " or ".join(class_of(c) for c in set(cast_types).union([self.base]))
+        else:
+            return "coercable to %s" % class_of(self.base)
+
+
+class CInt(Coercable, Int):
+    """A casting version of the int trait."""
+    base = int
+
 
 if six.PY2:
     class Long(TraitType):
@@ -1892,14 +1924,10 @@ if six.PY2:
             self.error(obj, value)
 
 
-    class CLong(Long):
+    class CLong(Coercable, Long):
         """A casting version of the long integer trait."""
+        base = long
 
-        def validate(self, obj, value):
-            try:
-                return long(value)
-            except:
-                self.error(obj, value)
 
     class Integer(TraitType):
         """An integer trait.
@@ -1953,14 +1981,10 @@ class Float(TraitType):
         return value
 
 
-class CFloat(Float):
+class CFloat(Coercable, Float):
     """A casting version of the float trait."""
+    base = float
 
-    def validate(self, obj, value):
-        try:
-            return float(value)
-        except:
-            self.error(obj, value)
 
 class Complex(TraitType):
     """A trait for complex numbers."""
@@ -1976,14 +2000,10 @@ class Complex(TraitType):
         self.error(obj, value)
 
 
-class CComplex(Complex):
+class CComplex(Coercable, Complex):
     """A casting version of the complex number trait."""
+    base = complex
 
-    def validate (self, obj, value):
-        try:
-            return complex(value)
-        except:
-            self.error(obj, value)
 
 # We should always be explicit about whether we're using bytes or unicode, both
 # for Python 3 conversion and for reliable unicode behaviour on Python 2. So
@@ -2000,14 +2020,9 @@ class Bytes(TraitType):
         self.error(obj, value)
 
 
-class CBytes(Bytes):
+class CBytes(Coercable, Bytes):
     """A casting version of the byte string trait."""
-
-    def validate(self, obj, value):
-        try:
-            return bytes(value)
-        except:
-            self.error(obj, value)
+    base = bytes
 
 
 class Unicode(TraitType):
@@ -2028,14 +2043,9 @@ class Unicode(TraitType):
         self.error(obj, value)
 
 
-class CUnicode(Unicode):
+class CUnicode(Coercable, Unicode):
     """A casting version of the unicode trait."""
-
-    def validate(self, obj, value):
-        try:
-            return six.text_type(value)
-        except:
-            self.error(obj, value)
+    base = six.text_type
 
 
 class ObjectName(TraitType):
@@ -2087,14 +2097,9 @@ class Bool(TraitType):
         self.error(obj, value)
 
 
-class CBool(Bool):
+class CBool(Coercable, Bool):
     """A casting version of the boolean trait."""
-
-    def validate(self, obj, value):
-        try:
-            return bool(value)
-        except:
-            self.error(obj, value)
+    base = bool
 
 
 class Enum(TraitType):
@@ -2299,6 +2304,10 @@ class List(Container):
         return value
 
 
+class CList(Coercable, List):
+    base = list
+
+
 class Set(List):
     """An instance of a Python set."""
     klass = set
@@ -2338,6 +2347,10 @@ class Set(List):
             The maximum length of the input list
         """
         super(Set, self).__init__(trait, default_value, minlen, maxlen, **metadata)
+
+
+class CSet(Coercable, Set):
+    base = set
 
 
 class Tuple(Container):
@@ -2431,6 +2444,10 @@ class Tuple(Container):
             if isinstance(trait, TraitType):
                 trait.instance_init(obj)
         super(Container, self).instance_init(obj)
+
+
+class CTuple(Coercable, Tuple):
+    base = tuple
 
 
 class Dict(Instance):
@@ -2538,6 +2555,11 @@ class Dict(Instance):
             for trait in self._traits.values():
                 trait.instance_init(obj)
         super(Dict, self).instance_init(obj)
+
+
+class CDict(Coercable, Dict):
+    base = dict
+    _cast_types = (list, tuple)
 
 
 class TCPAddress(TraitType):
