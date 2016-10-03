@@ -1483,6 +1483,21 @@ class HasTraits(six.with_metaclass(MetaHasTraits, HasDescriptors)):
                         events[k] = v
         return events
 
+    def trait_default_value(self, name):
+        """Get the original default value for a trait
+
+        This will raise if a trait lacks a default value.
+        """
+        try:
+            _ = self._trait_values.pop(name)
+        except:
+            default = getattr(self, name)
+            del self._trait_values[name]
+        else:
+            default = getattr(self, name)
+            self._trait_values[name] = _
+        return default
+
 #-----------------------------------------------------------------------------
 # Actual TraitTypes implementations/subclasses
 #-----------------------------------------------------------------------------
