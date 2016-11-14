@@ -421,13 +421,8 @@ class TraitType(BaseDescriptor):
 
     def class_init(self, cls, name):
         super(TraitType, self).class_init(cls, name)
-        if self.name not in cls._trait_default_generators:
-            if hasattr(self, 'make_dynamic_default'):
-                cls._trait_default_generators[self.name] = (
-                    lambda obj: self.make_dynamic_default())
-            elif self.default_value is not Undefined:
-                cls._trait_default_generators[self.name] = (
-                    lambda obj : self.default_value)
+        if self.name is not None and self.name not in cls._trait_default_generators:
+            cls._trait_default_generators[self.name] = self.find_default_value
 
     def subclass_init(self, cls):
         if '_%s_default' % self.name in cls.__dict__:
@@ -482,9 +477,20 @@ class TraitType(BaseDescriptor):
         if help is not None:
             self.metadata['help'] = help
 
+    def find_default_value(self, obj=None):
+        """Find the appropriate static, or dynamic, builtin default value for this trait.
+
+        Returns
+        -------
+        The traits static or dynamic default value, or Undefined if no default value exists
+        """
+        if hasattr(self, 'make_dynamic_default'):
+            return self.make_dynamic_default()
+        else:
+            return self.default_value
+
     def get_default_value(self):
         """DEPRECATED: Retrieve the static default value for this trait.
-
         Use self.default_value instead
         """
         warn("get_default_value is deprecated in traitlets 4.0: use the .default_value attribute", DeprecationWarning,
@@ -504,14 +510,12 @@ class TraitType(BaseDescriptor):
         try:
             value = obj._trait_values[self.name]
         except KeyError:
-            # Check for a dynamic initializer.
-            try:
-                dgen = cls._trait_default_generators[self.name]
-            except:
+            default = cls._trait_default_generators[self.name](obj)
+            if default is Undefined:
                 raise TraitError("No default value found for "
                     "the '%s' trait named '%s' of %r" % (
                     type(self).__name__, self.name, obj))
-            value = self._validate(obj, dgen(obj))
+            value = self._validate(obj, default)
             obj._trait_values[self.name] = value
             return value
         except Exception:
@@ -1787,9 +1791,18 @@ class Union(TraitType):
         Union([Float(), Bool(), Int()]) attempts to validate the provided values
         with the validation function of Float, then Bool, and finally Int.
         """
-        self.trait_types = trait_types
+        self.trait_types = list(trait_types)
         self.info_text = " or ".join([tt.info() for tt in self.trait_types])
         super(Union, self).__init__(**kwargs)
+
+    def find_default_value(self, obj=None):
+        default = super(Union, self).find_default_value(obj)
+        for t in self.trait_types:
+            if default is Undefined:
+                default = t.find_default_value(obj)
+            else:
+                break
+        return default
 
     def class_init(self, cls, name):
         for trait_type in self.trait_types:
@@ -1819,15 +1832,6 @@ class Union(TraitType):
             return Union(self.trait_types + other.trait_types)
         else:
             return Union(self.trait_types + [other])
-
-    def make_dynamic_default(self):
-        if self.default_value is not Undefined:
-            return self.default_value
-        for trait_type in self.trait_types:
-            if trait_type.default_value is not Undefined:
-                return trait_type.default_value
-            elif hasattr(trait_type, 'make_dynamic_default'):
-                return trait_type.make_dynamic_default()
 
 
 #-----------------------------------------------------------------------------
