@@ -19,7 +19,7 @@ from traitlets.config.configurable import (
 
 from traitlets.traitlets import (
     Integer, Float, Unicode, List, Dict, Set, Enum,
-    _deprecations_shown, validate,
+    _deprecations_shown, validate
 )
 
 from traitlets.config.loader import Config
