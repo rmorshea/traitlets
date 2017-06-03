@@ -652,8 +652,8 @@ class TraitType(BaseDescriptor):
     def change(self, owner, old, new):
         """If there was a change, return a bunch describing it."""
         if self.compare(old, new):
-            return Bunch(name=self.name, old=old,
-                new=new, owner=owner, type='change')
+            return ChangeEvent(name=self.name,
+                old=old, new=new, owner=owner, )
         else:
             return None
 
