@@ -60,7 +60,7 @@ import six
 from .utils.getargspec import getargspec
 from .utils.importstring import import_item
 from .utils.sentinel import Sentinel
-from .utils.bunch import FrozenBunch
+from .utils.bunch import FrozenBunch, Bunch
 from .utils.descriptions import describe, class_of, add_article, repr_type
 
 SequenceTypes = (list, tuple, set, frozenset)
@@ -256,7 +256,7 @@ def parse_notifier_names(owner, names=None, tags=None):
         names = []
     elif names is All or isinstance(names, six.string_types):
         names = [names]
-    elif not names or All in names:
+    elif (not names and not tags) or All in names:
         names = [All]
     else:
         for n in names:
@@ -1309,7 +1309,6 @@ class HasTraits(six.with_metaclass(MetaHasTraits, HasDescriptors)):
         if not isinstance(change, EventReport):
             # cast to bunch if given a dict
             change = EventReport(change)
-            raise
         name, type = change.name, change.type
 
         callables = []
