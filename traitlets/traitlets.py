@@ -3038,8 +3038,6 @@ import types
 import spectate
 from weakref import ref
 from collections import defaultdict
-from traitlets import TraitType, Container, Undefined, TraitError
-from traitlets.utils.bunch import Bunch
 
 
 class Notifier(object):
