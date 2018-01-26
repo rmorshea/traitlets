@@ -85,6 +85,11 @@ __all__ = [
     'MetaHasTraits',
     'BaseDescriptor',
     'TraitType',
+    'Eventful',
+    'EventfulElements',
+    'EventfulList',
+    'EventfulSet',
+    'EventfulDict',
 ]
 
 # any TraitType subclass (that doesn't start with _) will be added automatically
