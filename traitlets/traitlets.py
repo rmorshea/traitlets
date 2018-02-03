@@ -432,6 +432,11 @@ class TraitType(BaseDescriptor):
     info_text = 'any value'
     default_value = Undefined
 
+    def subclass_init(self, cls):
+        super(TraitType, self).subclass_init(cls)
+        if self.name is not None:
+            cls._trait_names.append(self.name)
+
     def __init__(self, default_value=Undefined, allow_none=False, read_only=None, help=None,
         config=None, **kwargs):
         """Declare a traitlet.
@@ -804,6 +809,7 @@ class MetaHasTraits(MetaHasDescriptors):
     """A metaclass for HasTraits."""
 
     def setup_class(cls, classdict):
+        cls._trait_names = []
         cls._trait_default_generators = {}
         super(MetaHasTraits, cls).setup_class(classdict)
 
@@ -1436,18 +1442,18 @@ class HasTraits(six.with_metaclass(MetaHasTraits, HasDescriptors)):
         the output.  If a metadata key doesn't exist, None will be passed
         to the function.
         """
-        traits = dict([memb for memb in getmembers(cls) if
-                     isinstance(memb[1], TraitType)])
-
         if len(metadata) == 0:
-            return traits
+            return {n: getattr(cls, n) for n in cls._trait_names}
 
         result = {}
-        for name, trait in traits.items():
-            for meta_name, meta_eval in metadata.items():
-                if not callable(meta_eval):
-                    meta_eval = _SimpleTest(meta_eval)
-                if not meta_eval(trait.metadata.get(meta_name, None)):
+        for name in cls._trait_names:
+            trait = getattr(cls, name)
+            for key, check in metadata.items():
+                value = trait.metadata.get(key, None)
+                if not callable(check):
+                    if check != value:
+                        break
+                elif not check(value):
                     break
             else:
                 result[name] = trait
@@ -1561,7 +1567,7 @@ class HasTraits(six.with_metaclass(MetaHasTraits, HasDescriptors)):
 
     def trait_names(self, **metadata):
         """Get a list of all the names of this class' traits."""
-        return list(self.traits(**metadata))
+        return self.class_trait_names(**metadata)
 
     def traits(self, **metadata):
         """Get a ``dict`` of all the traits of this class.  The dictionary
@@ -1577,23 +1583,7 @@ class HasTraits(six.with_metaclass(MetaHasTraits, HasDescriptors)):
         the output.  If a metadata key doesn't exist, None will be passed
         to the function.
         """
-        traits = dict([memb for memb in getmembers(self.__class__) if
-                     isinstance(memb[1], TraitType)])
-
-        if len(metadata) == 0:
-            return traits
-
-        result = {}
-        for name, trait in traits.items():
-            for meta_name, meta_eval in metadata.items():
-                if not callable(meta_eval):
-                    meta_eval = _SimpleTest(meta_eval)
-                if not meta_eval(trait.metadata.get(meta_name, None)):
-                    break
-            else:
-                result[name] = trait
-
-        return result
+        return self.class_traits(**metadata)
 
     def trait_metadata(self, traitname, key, default=None):
         """Get metadata values for trait by key."""
@@ -1640,7 +1630,7 @@ class HasTraits(six.with_metaclass(MetaHasTraits, HasDescriptors)):
                 elif name in v.trait_names:
                     events[k] = v
                 elif hasattr(v, 'tags'):
-                    if cls.trait_names(**v.tags):
+                    if cls.class_trait_names(**v.tags):
                         events[k] = v
         return events
 
