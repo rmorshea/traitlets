@@ -44,8 +44,7 @@ def setup(app):
     module instead.
     """
     app.add_object_type('configtrait', 'configtrait', objname='Config option')
-    metadata = {'parallel_read_safe': True, 'parallel_write_safe': True}
-    return metadata
+    return {'parallel_read_safe': True, 'parallel_write_safe': True}
 
 def interesting_default_value(dv):
     if (dv is None) or (dv is Undefined):

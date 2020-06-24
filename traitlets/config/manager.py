@@ -70,10 +70,7 @@ class BaseJSONConfigManager(LoggingConfigurable):
         filename = self.file_name(section_name)
         self.ensure_config_dir_exists()
 
-        if PY3:
-            f = io.open(filename, 'w', encoding='utf-8')
-        else:
-            f = open(filename, 'wb')
+        f = io.open(filename, 'w', encoding='utf-8') if PY3 else open(filename, 'wb')
         with f:
             json.dump(data, f, indent=2)
 

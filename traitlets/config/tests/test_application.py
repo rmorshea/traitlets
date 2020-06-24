@@ -205,13 +205,13 @@ class TestApplication(TestCase):
 
     def test_cli_priority(self):
         """Test that loading config files does not override CLI options"""
-        name = 'config.py'
         class TestApp(Application):
             value = Unicode().tag(config=True)
             config_file_loaded = Bool().tag(config=True)
             aliases = {'v': 'TestApp.value'}
         app = TestApp()
         with TemporaryDirectory() as td:
+            name = 'config.py'
             config_file = pjoin(td, name)
             with open(config_file, 'w') as f:
                 f.writelines([
@@ -230,16 +230,16 @@ class TestApplication(TestCase):
             assert app.value == 'cli'
 
     def test_ipython_cli_priority(self):
-        # this test is almost entirely redundant with above,
-        # but we can keep it around in case of subtle issues creeping into
-        # the exact sequence IPython follows.
-        name = 'config.py'
         class TestApp(Application):
             value = Unicode().tag(config=True)
             config_file_loaded = Bool().tag(config=True)
             aliases = {'v': ('TestApp.value', 'some help')}
         app = TestApp()
         with TemporaryDirectory() as td:
+            # this test is almost entirely redundant with above,
+            # but we can keep it around in case of subtle issues creeping into
+            # the exact sequence IPython follows.
+            name = 'config.py'
             config_file = pjoin(td, name)
             with open(config_file, 'w') as f:
                 f.writelines([

@@ -169,7 +169,7 @@ class Configurable(HasTraits):
                     # config object. If we don't, a mutable config_value will be
                     # shared by all instances, effectively making it a class attribute.
                     setattr(self, name, deepcopy(config_value))
-                elif not _is_section_key(name) and not isinstance(config_value, Config):
+                elif not (_is_section_key(name) or isinstance(config_value, Config)):
                     from difflib import get_close_matches
                     if isinstance(self, LoggingConfigurable):
                         warn = self.log.warning

@@ -1655,7 +1655,7 @@ class DictTrait(HasTraits):
     value = Dict()
 
 def test_dict_assignment():
-    d = dict()
+    d = {}
     c = DictTrait()
     c.value = d
     d['a'] = 5

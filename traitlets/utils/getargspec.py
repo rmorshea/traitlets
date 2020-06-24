@@ -69,10 +69,7 @@ else:  # 2.6, 2.7
             raise TypeError('%r is not a Python function' % func)
         args, varargs, varkw = inspect.getargs(func.__code__)
         func_defaults = func.__defaults__
-        if func_defaults is None:
-            func_defaults = []
-        else:
-            func_defaults = list(func_defaults)
+        func_defaults = [] if func_defaults is None else list(func_defaults)
         if parts[0]:
             args = args[parts[0]:]
         if parts[1]:

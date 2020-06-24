@@ -279,13 +279,14 @@ class TestFuzzyEnum(unittest.TestCase):
                 self.assertEqual(example.color, color)
 
     def test_search_substrings__overwrite(self):
+
         class FuzzyExample(HasTraits):
             color = FuzzyEnum(color_choices, help="Color enum",
                               substring_matching=True)
 
         example = FuzzyExample()
         for color in color_choices:
-            for wlen in range(0, 2):
+            for wlen in range(2):
                 value = color[wlen:]
 
                 example.color = value

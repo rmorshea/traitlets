@@ -236,12 +236,12 @@ def getmembers(object, predicate=None):
 def _validate_link(*tuples):
     """Validate arguments for traitlet link functions"""
     for t in tuples:
-        if not len(t) == 2:
+        if len(t) != 2:
             raise TypeError("Each linked traitlet must be specified as (HasTraits, 'trait_name'), not %r" % t)
         obj, trait_name = t
         if not isinstance(obj, HasTraits):
             raise TypeError("Each object must be HasTraits, not %r" % type(obj))
-        if not trait_name in obj.traits():
+        if trait_name not in obj.traits():
             raise TypeError("%r has no trait %r" % (obj, trait_name))
 
 class link(object):
@@ -567,7 +567,7 @@ class TraitType(BaseDescriptor):
         except:
             # if there is an error in comparing, default to notify
             silent = False
-        if silent is not True:
+        if not silent:
             # we explicitly compare silent to True just in case the equality
             # comparison above returns something other than True/False
             obj._notify_trait(self.name, old_value, new_value)
@@ -1213,8 +1213,7 @@ class HasTraits(six.with_metaclass(MetaHasTraits, HasDescriptors)):
             event = Bunch(event)
         name, type = event.name, event.type
 
-        callables = []
-        callables.extend(self._trait_notifiers.get(name, {}).get(type, []))
+        callables = list(self._trait_notifiers.get(name, {}).get(type, []))
         callables.extend(self._trait_notifiers.get(name, {}).get(All, []))
         callables.extend(self._trait_notifiers.get(All, {}).get(type, []))
         callables.extend(self._trait_notifiers.get(All, {}).get(All, []))
@@ -2750,24 +2749,30 @@ class Dict(Instance):
             warn("Keyword `traits` is deprecated in traitlets 5.0, use `per_key_traits` instead", DeprecationWarning)
 
         # Handling positional arguments
-        if default_value is Undefined and value_trait is not None:
-            if not is_trait(value_trait):
-                default_value = value_trait
-                value_trait = None
+        if (
+            default_value is Undefined
+            and value_trait is not None
+            and not is_trait(value_trait)
+        ):
+            default_value = value_trait
+            value_trait = None
 
-        if key_trait is None and per_key_traits is not None:
-            if is_trait(per_key_traits):
-                key_trait = per_key_traits
-                per_key_traits = None
+        if (
+            key_trait is None
+            and per_key_traits is not None
+            and is_trait(per_key_traits)
+        ):
+            key_trait = per_key_traits
+            per_key_traits = None
 
         # Handling default value
         if default_value is Undefined:
             default_value = {}
         if default_value is None:
             args = None
-        elif isinstance(default_value, dict):
-            args = (default_value,)
-        elif isinstance(default_value, SequenceTypes):
+        elif isinstance(default_value, dict) or isinstance(
+            default_value, SequenceTypes
+        ):
             args = (default_value,)
         else:
             raise TypeError('default value of Dict was %s' % default_value)
@@ -2865,12 +2870,15 @@ class TCPAddress(TraitType):
     info_text = 'an (ip, port) tuple'
 
     def validate(self, obj, value):
-        if isinstance(value, tuple):
-            if len(value) == 2:
-                if isinstance(value[0], six.string_types) and isinstance(value[1], int):
-                    port = value[1]
-                    if port >= 0 and port <= 65535:
-                        return value
+        if (
+            isinstance(value, tuple)
+            and len(value) == 2
+            and isinstance(value[0], six.string_types)
+            and isinstance(value[1], int)
+        ):
+            port = value[1]
+            if port >= 0 and port <= 65535:
+                return value
         self.error(obj, value)
 
 class CRegExp(TraitType):

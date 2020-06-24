@@ -313,7 +313,7 @@ class Application(SingletonConfigurable):
                 # class attr, assign instead of insert
                 self.classes = [cls] + self.classes
             else:
-                self.classes.insert(0, self.__class__)
+                self.classes.insert(0, cls)
 
     @observe('config')
     @observe_compat
@@ -412,8 +412,7 @@ class Application(SingletonConfigurable):
 
                 # reformat first line
                 fhelp[0] = fhelp[0].replace('--' + longname, alias)
-                for l in fhelp:
-                    yield l
+                yield from fhelp
                 yield indent("Equivalent to: [--%s]" % longname)
             except Exception as ex:
                 self.log.error('Failed collecting help-message for alias %r, due to: %s',
@@ -455,7 +454,7 @@ class Application(SingletonConfigurable):
 
     def emit_options_help(self):
         """Yield the lines for the options part of the help."""
-        if not self.flags and not self.aliases:
+        if not (self.flags or self.aliases):
             return
         header = 'Options'
         yield header
@@ -464,10 +463,8 @@ class Application(SingletonConfigurable):
             yield p
             yield ''
 
-        for l in self.emit_flag_help():
-            yield l
-        for l in self.emit_alias_help():
-            yield l
+        yield from self.emit_flag_help()
+        yield from self.emit_alias_help()
         yield ''
 
     def print_subcommands(self):
@@ -513,13 +510,9 @@ class Application(SingletonConfigurable):
 
         If classes=False (the default), only flags and aliases are printed.
         """
-        for l in self.emit_description():
-            yield l
-        for l in self.emit_subcommands_help():
-            yield l
-        for l in self.emit_options_help():
-            yield l
-
+        yield from self.emit_description()
+        yield from self.emit_subcommands_help()
+        yield from self.emit_options_help()
         if classes:
             help_classes = self._classes_with_config_traits()
             if help_classes:
@@ -532,11 +525,8 @@ class Application(SingletonConfigurable):
             for cls in help_classes:
                 yield cls.class_get_help()
                 yield ''
-        for l in self.emit_examples():
-            yield l
-
-        for l in self.emit_help_epilogue(classes):
-            yield l
+        yield from self.emit_examples()
+        yield from self.emit_help_epilogue(classes)
 
     def document_config_options(self):
         """Generate rST format documentation for the config options this application
@@ -808,8 +798,7 @@ class Application(SingletonConfigurable):
 
     def generate_config_file(self, classes=None):
         """generate default config file from Configurables"""
-        lines = ["# Configuration file for %s." % self.name]
-        lines.append('')
+        lines = ["# Configuration file for %s." % self.name, '']
         classes = self.classes if classes is None else classes
         config_classes = list(self._classes_with_config_traits(classes))
         for cls in config_classes:

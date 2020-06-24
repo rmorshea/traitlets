@@ -99,10 +99,7 @@ class LazyConfigValue(HasTraits):
     _update = Any()
     def update(self, other):
         if self._update is None:
-            if isinstance(other, dict):
-                self._update = {}
-            else:
-                self._update = set()
+            self._update = {} if isinstance(other, dict) else set()
         self._update.update(other)
 
     # set methods
@@ -157,10 +154,7 @@ class LazyConfigValue(HasTraits):
 
 def _is_section_key(key):
     """Is a Config key a section name (does it start with a capital)?"""
-    if key and key[0].upper()==key[0] and not key.startswith('_'):
-        return True
-    else:
-        return False
+    return bool(key and key[0].upper()==key[0] and not key.startswith('_'))
 
 
 class Config(dict):
@@ -274,10 +268,9 @@ class Config(dict):
                 raise KeyError
 
     def __setitem__(self, key, value):
-        if _is_section_key(key):
-            if not isinstance(value, Config):
-                raise ValueError('values whose keys begin with an uppercase '
-                                 'char must be Config instances: %r, %r' % (key, value))
+        if _is_section_key(key) and not isinstance(value, Config):
+            raise ValueError('values whose keys begin with an uppercase '
+                             'char must be Config instances: %r, %r' % (key, value))
         dict.__setitem__(self, key, value)
 
     def __getattr__(self, key):
@@ -420,11 +413,7 @@ class JSONFileConfigLoader(FileConfigLoader):
             return json.load(f)
 
     def _convert_to_config(self, dictionary):
-        if 'version' in dictionary:
-            version = dictionary.pop('version')
-        else:
-            version = 1
-
+        version = dictionary.pop('version') if 'version' in dictionary else 1
         if version == 1:
             return Config(dictionary)
         else:

@@ -64,10 +64,7 @@ def describe(article, value, name=None, verbose=False, capital=False):
     if isinstance(article, str):
         article = article.lower()
 
-    if not inspect.isclass(value):
-        typename = type(value).__name__
-    else:
-        typename = value.__name__
+    typename = value.__name__ if inspect.isclass(value) else type(value).__name__
     if verbose:
         typename = _prefix(value) + typename
 
@@ -151,10 +148,7 @@ def add_article(name, definite=False, capital=False):
         result = "the " + name
     else:
         first_letters = re.compile(r'[\W_]+').sub('', name)
-        if first_letters[:1].lower() in 'aeiou':
-            result = 'an ' + name
-        else:
-            result = 'a ' + name
+        result = 'an ' + name if first_letters[:1].lower() in 'aeiou' else 'a ' + name
     if capital:
         return result[0].upper() + result[1:]
     else:
@@ -171,5 +165,4 @@ def repr_type(obj):
     if six.PY2 and the_type is types.InstanceType:
         # Old-style class.
         the_type = obj.__class__
-    msg = '%r %r' % (obj, the_type)
-    return msg
+    return '%r %r' % (obj, the_type)
